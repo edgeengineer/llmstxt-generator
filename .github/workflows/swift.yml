@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-14, ubuntu-latest]
-        swift-version: ['5.9']
+        swift-version: ['6.0']
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -28,7 +28,7 @@ jobs:
     - name: Setup Swift (macOS)
       if: runner.os == 'macOS'
       run: |
-        sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
         swift --version
         
     - name: Cache Swift packages
@@ -67,7 +67,7 @@ jobs:
       
     - name: Setup Swift
       run: |
-        sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
         swift --version
         
     - name: Build ExampleLibrary
@@ -86,7 +86,7 @@ jobs:
       
     - name: Setup Swift
       run: |
-        sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
         swift --version
         
     - name: Install swift-format
