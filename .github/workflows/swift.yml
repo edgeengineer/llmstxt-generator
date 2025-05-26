@@ -1,0 +1,102 @@
+name: Swift CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        os: [macos-14, ubuntu-latest]
+        swift-version: ['6.0']
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Swift (Linux)
+      if: runner.os == 'Linux'
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: ${{ matrix.swift-version }}
+        
+    - name: Setup Swift (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        swift --version
+        
+    - name: Cache Swift packages
+      uses: actions/cache@v4
+      with:
+        path: .build
+        key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-
+          
+    - name: Build
+      run: swift build -v
+      
+    - name: Run tests
+      run: swift test -v
+      
+    - name: Test plugin functionality
+      run: |
+        swift package plugin generate-llms-txt || true
+        if [ -f llms.txt ]; then
+          echo "✅ Plugin successfully generated llms.txt"
+          echo "📄 Generated file size: $(wc -c < llms.txt) bytes"
+          echo "📝 Number of lines: $(wc -l < llms.txt)"
+        else
+          echo "❌ Plugin failed to generate llms.txt"
+          exit 1
+        fi
+
+  build-examples:
+    name: Build Examples
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Swift
+      run: |
+        sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        swift --version
+        
+    - name: Build ExampleLibrary
+      run: swift build --target ExampleLibrary
+      
+    - name: Test ExampleLibrary
+      run: swift test --filter ExampleLibraryTests
+      
+  lint:
+    name: Swift Format Check
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Swift
+      run: |
+        sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        swift --version
+        
+    - name: Install swift-format
+      run: |
+        git clone https://github.com/apple/swift-format.git
+        cd swift-format
+        swift build -c release
+        echo "$(pwd)/.build/release" >> $GITHUB_PATH
+        
+    - name: Check code formatting
+      run: |
+        swift-format lint --recursive Sources/ Tests/ Plugins/ || true
+        echo "ℹ️ Code formatting check completed"
