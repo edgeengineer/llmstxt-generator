@@ -8,7 +8,7 @@ import Foundation
 /// Provides safe concurrent access to shared data storage
 public actor DataManager {
     
-    private var storage: [String: Any] = [:]
+    private var storage: [String: any Sendable] = [:]
     private var accessCount: Int = 0
     
     /// Stores a value with the given key
@@ -20,7 +20,7 @@ public actor DataManager {
     ///   let manager = DataManager()
     ///   await manager.setValue("Hello", forKey: "greeting")
     ///   ```
-    public func setValue(_ value: Any, forKey key: String) {
+    public func setValue(_ value: any Sendable, forKey key: String) {
         storage[key] = value
         accessCount += 1
     }
@@ -33,7 +33,7 @@ public actor DataManager {
     ///   let manager = DataManager()
     ///   let value = await manager.getValue(forKey: "greeting")
     ///   ```
-    public func getValue(forKey key: String) -> Any? {
+    public func getValue(forKey key: String) -> (any Sendable)? {
         accessCount += 1
         return storage[key]
     }
@@ -41,7 +41,7 @@ public actor DataManager {
     /// Removes a value for the given key
     /// - Parameter key: The key to remove
     /// - Returns: The removed value, or nil if the key wasn't found
-    public func removeValue(forKey key: String) -> Any? {
+    public func removeValue(forKey key: String) -> (any Sendable)? {
         accessCount += 1
         return storage.removeValue(forKey: key)
     }

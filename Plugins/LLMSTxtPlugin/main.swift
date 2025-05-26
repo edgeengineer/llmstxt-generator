@@ -8,39 +8,39 @@ import PackagePlugin
 @main
 struct LLMSTxtPlugin: CommandPlugin {
     func performCommand(context: PluginContext, arguments: [String]) async throws {
-        let packageDirectory = context.package.directory
-        let outputPath = packageDirectory.appending(subpath: "llms.txt")
+        let packageDirectoryURL = context.package.directoryURL
+        let outputURL = packageDirectoryURL.appending(path: "llms.txt")
         
-        print("Generating llms.txt for package at: \(packageDirectory)")
+        print("Generating llms.txt for package at: \(packageDirectoryURL.path)")
         
-        let sourceFiles = findSwiftFiles(in: packageDirectory)
-        let documentation = generateDocumentation(from: sourceFiles, packageName: context.package.displayName, packageDirectory: packageDirectory)
+        let sourceFiles = findSwiftFiles(in: packageDirectoryURL)
+        let documentation = generateDocumentation(from: sourceFiles, packageName: context.package.displayName, packageDirectoryURL: packageDirectoryURL)
         
-        try documentation.write(to: URL(fileURLWithPath: outputPath.string), atomically: true, encoding: .utf8)
+        try documentation.write(to: outputURL, atomically: true, encoding: .utf8)
         
-        print("Successfully generated llms.txt at: \(outputPath)")
+        print("Successfully generated llms.txt at: \(outputURL.path)")
     }
     
-    private func findSwiftFiles(in directory: Path) -> [Path] {
-        var swiftFiles: [Path] = []
+    private func findSwiftFiles(in directoryURL: URL) -> [URL] {
+        var swiftFiles: [URL] = []
         
-        func searchDirectory(_ dir: Path) {
-            guard let enumerator = FileManager.default.enumerator(atPath: dir.string) else { return }
+        func searchDirectory(_ dirURL: URL) {
+            guard let enumerator = FileManager.default.enumerator(at: dirURL, includingPropertiesForKeys: nil) else { return }
             
-            for case let file as String in enumerator {
-                let filePath = dir.appending(subpath: file)
-                if file.hasSuffix(".swift") && !file.contains("/.build/") && !file.contains("/Tests/") {
-                    swiftFiles.append(filePath)
+            for case let fileURL as URL in enumerator {
+                let filePath = fileURL.path
+                if filePath.hasSuffix(".swift") && !filePath.contains("/.build/") && !filePath.contains("/Tests/") {
+                    swiftFiles.append(fileURL)
                 }
             }
         }
         
-        searchDirectory(directory.appending(subpath: "Sources"))
+        searchDirectory(directoryURL.appending(path: "Sources"))
         return swiftFiles
     }
     
-    private func generateDocumentation(from files: [Path], packageName: String, packageDirectory: Path) -> String {
-        let packageMetadata = extractPackageMetadata(from: packageDirectory)
+    private func generateDocumentation(from files: [URL], packageName: String, packageDirectoryURL: URL) -> String {
+        let packageMetadata = extractPackageMetadata(from: packageDirectoryURL)
         
         var documentation = """
         # \(packageName) API Documentation
@@ -65,20 +65,20 @@ struct LLMSTxtPlugin: CommandPlugin {
         
         """
         
-        for file in files {
+        for fileURL in files {
             do {
-                let fileContent = try String(contentsOfFile: file.string)
+                let fileContent = try String(contentsOf: fileURL)
                 let publicDeclarations = extractPublicDeclarations(from: fileContent)
                 
                 if !publicDeclarations.isEmpty {
-                    documentation += "\n### \(file.lastComponent)\n\n"
+                    documentation += "\n### \(fileURL.lastPathComponent)\n\n"
                     
                     for declaration in publicDeclarations {
                         documentation += declaration + "\n\n"
                     }
                 }
             } catch {
-                print("Error reading file \(file): \(error)")
+                print("Error reading file \(fileURL.path): \(error)")
             }
         }
         
@@ -267,13 +267,13 @@ struct LLMSTxtPlugin: CommandPlugin {
         return cleanLine
     }
     
-    private func extractPackageMetadata(from packageDirectory: Path) -> [String: String] {
+    private func extractPackageMetadata(from packageDirectoryURL: URL) -> [String: String] {
         var metadata: [String: String] = [:]
         
-        let packageSwiftPath = packageDirectory.appending(subpath: "Package.swift")
+        let packageSwiftURL = packageDirectoryURL.appending(path: "Package.swift")
         
         do {
-            let packageContent = try String(contentsOfFile: packageSwiftPath.string)
+            let packageContent = try String(contentsOf: packageSwiftURL)
             
             // Extract package name
             if let nameMatch = packageContent.range(of: #"name:\s*"([^"]+)""#, options: .regularExpression) {
