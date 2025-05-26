@@ -40,11 +40,25 @@ struct LLMSTxtPlugin: CommandPlugin {
     }
     
     private func generateDocumentation(from files: [URL], packageName: String) -> String {
+        let packageMetadata = extractPackageMetadata(from: context.package.directoryURL)
+        
         var documentation = """
         # \(packageName) API Documentation
         
         This file provides LLM-friendly documentation for the \(packageName) Swift package.
         
+        ## Package Information
+        
+        """
+        
+        if !packageMetadata.isEmpty {
+            for (key, value) in packageMetadata {
+                documentation += "- **\(key)**: \(value)\n"
+            }
+            documentation += "\n"
+        }
+        
+        documentation += """
         ## Overview
         
         This package provides the following public APIs:
@@ -123,6 +137,7 @@ struct LLMSTxtPlugin: CommandPlugin {
     }
     
     private func getDeclarationType(from line: String) -> String {
+        if line.contains("actor ") { return "Actor" }
         if line.contains("class ") { return "Class" }
         if line.contains("struct ") { return "Struct" }
         if line.contains("enum ") { return "Enum" }
@@ -130,6 +145,8 @@ struct LLMSTxtPlugin: CommandPlugin {
         if line.contains("func ") { return "Function" }
         if line.contains("var ") { return "Variable" }
         if line.contains("let ") { return "Constant" }
+        if line.contains("typealias ") { return "Type Alias" }
+        if line.contains("extension ") { return "Extension" }
         return "Declaration"
     }
     
@@ -145,7 +162,7 @@ struct LLMSTxtPlugin: CommandPlugin {
         
         // Find the name after the declaration keyword
         for i in 0..<components.count {
-            if ["class", "struct", "enum", "protocol", "var", "let"].contains(components[i]) && i + 1 < components.count {
+            if ["actor", "class", "struct", "enum", "protocol", "var", "let", "typealias", "extension"].contains(components[i]) && i + 1 < components.count {
                 let name = components[i + 1]
                 // Remove type annotations for variables
                 if let colonIndex = name.firstIndex(of: ":") {
@@ -248,5 +265,113 @@ struct LLMSTxtPlugin: CommandPlugin {
         }
         
         return cleanLine
+    }
+    
+    private func extractPackageMetadata(from packageDirectory: URL) -> [String: String] {
+        var metadata: [String: String] = [:]
+        
+        let packageSwiftURL = packageDirectory.appending(path: "Package.swift")
+        
+        do {
+            let packageContent = try String(contentsOf: packageSwiftURL)
+            
+            // Extract package name
+            if let nameMatch = packageContent.range(of: #"name:\s*"([^"]+)""#, options: .regularExpression) {
+                let nameString = String(packageContent[nameMatch])
+                if let nameValue = nameString.range(of: #""([^"]+)""#, options: .regularExpression) {
+                    let name = String(nameString[nameValue]).replacingOccurrences(of: "\"", with: "")
+                    metadata["Package Name"] = name
+                }
+            }
+            
+            // Extract Swift tools version
+            if let versionMatch = packageContent.range(of: #"swift-tools-version:\s*([0-9.]+)"#, options: .regularExpression) {
+                let versionString = String(packageContent[versionMatch])
+                if let version = versionString.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces) {
+                    metadata["Swift Tools Version"] = version
+                }
+            }
+            
+            // Extract platforms
+            let platformPatterns = [
+                ("macOS", #"\.macOS\(\.v([0-9_]+)\)"#),
+                ("iOS", #"\.iOS\(\.v([0-9_]+)\)"#),
+                ("tvOS", #"\.tvOS\(\.v([0-9_]+)\)"#),
+                ("watchOS", #"\.watchOS\(\.v([0-9_]+)\)"#),
+                ("visionOS", #"\.visionOS\(\.v([0-9_]+)\)"#)
+            ]
+            
+            var supportedPlatforms: [String] = []
+            for (platform, pattern) in platformPatterns {
+                if let match = packageContent.range(of: pattern, options: .regularExpression) {
+                    let matchString = String(packageContent[match])
+                    if let versionMatch = matchString.range(of: #"v([0-9_]+)"#, options: .regularExpression) {
+                        let version = String(matchString[versionMatch]).replacingOccurrences(of: "v", with: "").replacingOccurrences(of: "_", with: ".")
+                        supportedPlatforms.append("\(platform) \(version)+")
+                    } else {
+                        supportedPlatforms.append(platform)
+                    }
+                }
+            }
+            
+            if !supportedPlatforms.isEmpty {
+                metadata["Supported Platforms"] = supportedPlatforms.joined(separator: ", ")
+            }
+            
+            // Extract products
+            var products: [String] = []
+            let productPattern = #"\.library\(\s*name:\s*"([^"]+)""#
+            let productMatches = packageContent.ranges(of: productPattern, options: .regularExpression)
+            for match in productMatches {
+                let productString = String(packageContent[match])
+                if let nameMatch = productString.range(of: #""([^"]+)""#, options: .regularExpression) {
+                    let productName = String(productString[nameMatch]).replacingOccurrences(of: "\"", with: "")
+                    products.append(productName)
+                }
+            }
+            
+            let pluginPattern = #"\.plugin\(\s*name:\s*"([^"]+)""#
+            let pluginMatches = packageContent.ranges(of: pluginPattern, options: .regularExpression)
+            for match in pluginMatches {
+                let pluginString = String(packageContent[match])
+                if let nameMatch = pluginString.range(of: #""([^"]+)""#, options: .regularExpression) {
+                    let pluginName = String(pluginString[nameMatch]).replacingOccurrences(of: "\"", with: "")
+                    products.append("\(pluginName) (Plugin)")
+                }
+            }
+            
+            if !products.isEmpty {
+                metadata["Products"] = products.joined(separator: ", ")
+            }
+            
+            // Extract dependencies
+            var dependencies: [String] = []
+            let depPattern = #"\.package\([^)]*url:\s*"([^"]+)""#
+            let depMatches = packageContent.ranges(of: depPattern, options: .regularExpression)
+            for match in depMatches {
+                let depString = String(packageContent[match])
+                if let urlMatch = depString.range(of: #""([^"]+)""#, options: .regularExpression) {
+                    let url = String(depString[urlMatch]).replacingOccurrences(of: "\"", with: "")
+                    if let repoName = url.components(separatedBy: "/").last?.replacingOccurrences(of: ".git", with: "") {
+                        dependencies.append(repoName)
+                    }
+                }
+            }
+            
+            if !dependencies.isEmpty {
+                metadata["Dependencies"] = dependencies.joined(separator: ", ")
+            }
+            
+        } catch {
+            print("Warning: Could not read Package.swift: \(error)")
+        }
+        
+        // Add generation timestamp
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        metadata["Generated"] = formatter.string(from: Date())
+        
+        return metadata
     }
 }
