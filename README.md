@@ -3,7 +3,7 @@
 [![Swift](https://img.shields.io/badge/swift-6.0-brightgreen.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20visionOS%20%7C%20Linux-lightgrey.svg)](https://swift.org)
 [![CI](https://github.com/edgeengineer/llmstxt-generator/actions/workflows/swift.yml/badge.svg)](https://github.com/edgeengineer/llmstxt-generator/actions/workflows/swift.yml)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A Swift Package Plugin that automatically generates `llms.txt` files for Swift packages to provide LLM-friendly documentation.
 
@@ -152,4 +152,4 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 
 ## License
 
-This project is available under the MIT license. See the LICENSE file for more info.
+This project is available under the Apache 2.0 license. See the LICENSE file for more info.
