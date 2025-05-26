@@ -8,39 +8,39 @@ import PackagePlugin
 @main
 struct LLMSTxtPlugin: CommandPlugin {
     func performCommand(context: PluginContext, arguments: [String]) async throws {
-        let packageDirectory = context.package.directoryURL
-        let outputPath = packageDirectory.appending(path: "llms.txt")
+        let packageDirectory = context.package.directory
+        let outputPath = packageDirectory.appending(subpath: "llms.txt")
         
-        print("Generating llms.txt for package at: \(packageDirectory.path)")
+        print("Generating llms.txt for package at: \(packageDirectory)")
         
         let sourceFiles = findSwiftFiles(in: packageDirectory)
-        let documentation = generateDocumentation(from: sourceFiles, packageName: context.package.displayName)
+        let documentation = generateDocumentation(from: sourceFiles, packageName: context.package.displayName, packageDirectory: packageDirectory)
         
-        try documentation.write(to: outputPath, atomically: true, encoding: .utf8)
+        try documentation.write(to: URL(fileURLWithPath: outputPath.string), atomically: true, encoding: .utf8)
         
-        print("Successfully generated llms.txt at: \(outputPath.path)")
+        print("Successfully generated llms.txt at: \(outputPath)")
     }
     
-    private func findSwiftFiles(in directory: URL) -> [URL] {
-        var swiftFiles: [URL] = []
+    private func findSwiftFiles(in directory: Path) -> [Path] {
+        var swiftFiles: [Path] = []
         
-        func searchDirectory(_ dir: URL) {
-            guard let enumerator = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil) else { return }
+        func searchDirectory(_ dir: Path) {
+            guard let enumerator = FileManager.default.enumerator(atPath: dir.string) else { return }
             
-            for case let fileURL as URL in enumerator {
-                let fileName = fileURL.lastPathComponent
-                if fileName.hasSuffix(".swift") && !fileURL.path.contains("/.build/") && !fileURL.path.contains("/Tests/") {
-                    swiftFiles.append(fileURL)
+            for case let file as String in enumerator {
+                let filePath = dir.appending(subpath: file)
+                if file.hasSuffix(".swift") && !file.contains("/.build/") && !file.contains("/Tests/") {
+                    swiftFiles.append(filePath)
                 }
             }
         }
         
-        searchDirectory(directory.appending(path: "Sources"))
+        searchDirectory(directory.appending(subpath: "Sources"))
         return swiftFiles
     }
     
-    private func generateDocumentation(from files: [URL], packageName: String) -> String {
-        let packageMetadata = extractPackageMetadata(from: context.package.directoryURL)
+    private func generateDocumentation(from files: [Path], packageName: String, packageDirectory: Path) -> String {
+        let packageMetadata = extractPackageMetadata(from: packageDirectory)
         
         var documentation = """
         # \(packageName) API Documentation
@@ -67,11 +67,11 @@ struct LLMSTxtPlugin: CommandPlugin {
         
         for file in files {
             do {
-                let fileContent = try String(contentsOf: file)
+                let fileContent = try String(contentsOfFile: file.string)
                 let publicDeclarations = extractPublicDeclarations(from: fileContent)
                 
                 if !publicDeclarations.isEmpty {
-                    documentation += "\n### \(file.lastPathComponent)\n\n"
+                    documentation += "\n### \(file.lastComponent)\n\n"
                     
                     for declaration in publicDeclarations {
                         documentation += declaration + "\n\n"
@@ -267,13 +267,13 @@ struct LLMSTxtPlugin: CommandPlugin {
         return cleanLine
     }
     
-    private func extractPackageMetadata(from packageDirectory: URL) -> [String: String] {
+    private func extractPackageMetadata(from packageDirectory: Path) -> [String: String] {
         var metadata: [String: String] = [:]
         
-        let packageSwiftURL = packageDirectory.appending(path: "Package.swift")
+        let packageSwiftPath = packageDirectory.appending(subpath: "Package.swift")
         
         do {
-            let packageContent = try String(contentsOf: packageSwiftURL)
+            let packageContent = try String(contentsOfFile: packageSwiftPath.string)
             
             // Extract package name
             if let nameMatch = packageContent.range(of: #"name:\s*"([^"]+)""#, options: .regularExpression) {
@@ -318,48 +318,16 @@ struct LLMSTxtPlugin: CommandPlugin {
                 metadata["Supported Platforms"] = supportedPlatforms.joined(separator: ", ")
             }
             
-            // Extract products
-            var products: [String] = []
-            let productPattern = #"\.library\(\s*name:\s*"([^"]+)""#
-            let productMatches = packageContent.ranges(of: productPattern, options: .regularExpression)
-            for match in productMatches {
-                let productString = String(packageContent[match])
-                if let nameMatch = productString.range(of: #""([^"]+)""#, options: .regularExpression) {
-                    let productName = String(productString[nameMatch]).replacingOccurrences(of: "\"", with: "")
-                    products.append(productName)
-                }
+            // Extract simple patterns without ranges
+            if packageContent.contains(".library(") {
+                metadata["Products"] = "Swift Library"
+            }
+            if packageContent.contains(".plugin(") {
+                metadata["Products"] = metadata["Products"] == nil ? "Swift Plugin" : "Swift Library, Swift Plugin"
             }
             
-            let pluginPattern = #"\.plugin\(\s*name:\s*"([^"]+)""#
-            let pluginMatches = packageContent.ranges(of: pluginPattern, options: .regularExpression)
-            for match in pluginMatches {
-                let pluginString = String(packageContent[match])
-                if let nameMatch = pluginString.range(of: #""([^"]+)""#, options: .regularExpression) {
-                    let pluginName = String(pluginString[nameMatch]).replacingOccurrences(of: "\"", with: "")
-                    products.append("\(pluginName) (Plugin)")
-                }
-            }
-            
-            if !products.isEmpty {
-                metadata["Products"] = products.joined(separator: ", ")
-            }
-            
-            // Extract dependencies
-            var dependencies: [String] = []
-            let depPattern = #"\.package\([^)]*url:\s*"([^"]+)""#
-            let depMatches = packageContent.ranges(of: depPattern, options: .regularExpression)
-            for match in depMatches {
-                let depString = String(packageContent[match])
-                if let urlMatch = depString.range(of: #""([^"]+)""#, options: .regularExpression) {
-                    let url = String(depString[urlMatch]).replacingOccurrences(of: "\"", with: "")
-                    if let repoName = url.components(separatedBy: "/").last?.replacingOccurrences(of: ".git", with: "") {
-                        dependencies.append(repoName)
-                    }
-                }
-            }
-            
-            if !dependencies.isEmpty {
-                metadata["Dependencies"] = dependencies.joined(separator: ", ")
+            if packageContent.contains("swift-syntax") {
+                metadata["Dependencies"] = "swift-syntax"
             }
             
         } catch {

@@ -1,15 +1,15 @@
 # LLMSTxtGenerator
 
-[![Swift](https://img.shields.io/badge/swift-6.0-brightgreen.svg)](https://swift.org)
+[![Swift](https://img.shields.io/badge/swift-5.9+-brightgreen.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20visionOS%20%7C%20Linux-lightgrey.svg)](https://swift.org)
 [![CI](https://github.com/edgeengineer/llmstxt-generator/actions/workflows/swift.yml/badge.svg)](https://github.com/edgeengineer/llmstxt-generator/actions/workflows/swift.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-A Swift Package Plugin that automatically generates `llms.txt` files for Swift packages to provide LLM-friendly documentation.
+A Swift Package Plugin that automatically generates [`llms.txt`](https://llmstxt.org/) files for Swift packages to provide LLM-friendly documentation.
 
 ## Overview
 
-The LLMSTxtGenerator plugin analyzes your Swift package's public API and generates a comprehensive `llms.txt` file that contains structured documentation optimized for Large Language Models. This makes it easier for LLMs to understand and work with your Swift package.
+The LLMSTxtGenerator plugin analyzes your Swift package's public API and generates a comprehensive [`llms.txt`](https://llmstxt.org/) file that contains structured documentation optimized for Large Language Models. This follows the [`llms.txt`](https://llmstxt.org/) standard for providing LLM-friendly content to websites and packages, making it easier for LLMs to understand and work with your Swift package.
 
 ## Features
 
@@ -126,8 +126,8 @@ The plugin works by:
 
 ## Requirements
 
-- Swift 6.0 or later
-- Supports all Apple platforms (macOS 14+, iOS 17+, tvOS 17+, watchOS 10+, visionOS 1+)
+- Swift 5.9 or later
+- Supports all Apple platforms (macOS 10.15+, iOS 13+, tvOS 13+, watchOS 6+, visionOS 1+)
 - Linux support included
 
 ## Development
