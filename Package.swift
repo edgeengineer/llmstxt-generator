@@ -30,7 +30,10 @@ let package = Package(
         .plugin(
             name: "LLMSTxtPlugin",
             capability: .command(
-                intent: .custom(verb: "generate-llms-txt", description: "Generate llms.txt file from Swift package")
+                intent: .custom(verb: "generate-llms-txt", description: "Generate llms.txt file from Swift package"),
+                permissions: [
+                    .writeToPackageDirectory(reason: "Generate llms.txt file in the package root directory")
+                ]
             )
         ),
         .testTarget(

@@ -38,7 +38,7 @@ struct DataManagerTests {
         
         let initialCount = await manager.getAccessCount()
         await manager.setValue("test", forKey: "key")
-        await manager.getValue(forKey: "key")
+        _ = await manager.getValue(forKey: "key")
         
         let finalCount = await manager.getAccessCount()
         #expect(finalCount == initialCount + 2)
